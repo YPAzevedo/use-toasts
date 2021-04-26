@@ -7,13 +7,13 @@ type ToastPayload = {
   dismissTime?: number;
 };
 
-type ExtendedToastPayload = ToastPayload & { date: number };
+type ExtendedToastPayload = ToastPayload & { id: number };
 
-const toastColorMap = {
-  success: "green",
-  error: "red",
-  warning: "orange",
-  info: "lightblue"
+const toastDataMap = {
+  success: { light: "#CBF8B3", dark: "#0B5B1D", icon: "✅" },
+  error: { light: "#FFC7AD", dark: "#7A0925", icon: "❌" },
+  warning: { light: "#FFF1A6", dark: "#7A5606", icon: "⚠️" },
+  info: { light: "#B4ECFE", dark: "#0D3378", icon: "ℹ️" }
 } as const;
 
 type ToastProviderProps = {
@@ -24,9 +24,10 @@ type ToastProviderProps = {
 
 type ToastContextValue = {
   dispatchToast: (payload: ToastPayload) => void;
+  dismissToast: (id: number) => void;
 };
 
-type ToastProps = ToastPayload;
+type ToastProps = ExtendedToastPayload;
 
 function useIsMounted() {
   const mountRef = useRef(false);
@@ -55,14 +56,6 @@ const ToastContext = React.createContext<ToastContextValue>(
   {} as ToastContextValue
 );
 
-function Toast({ type, message }: ToastProps) {
-  return (
-    <div style={{ border: `1px solid ${toastColorMap[type]}`, padding: 16 }}>
-      {type}: {message}
-    </div>
-  );
-}
-
 function ToastProvider({
   children,
   dismissTime = 2000,
@@ -75,7 +68,7 @@ function ToastProvider({
     (payload: ToastPayload) => {
       const realDismissTime: number = payload.dismissTime ?? dismissTime;
 
-      const extendPayload = { ...payload, date: new Date().valueOf() };
+      const extendPayload = { ...payload, id: new Date().valueOf() };
 
       safeSetToasts((oldToasts) => [extendPayload, ...oldToasts]);
 
@@ -88,11 +81,16 @@ function ToastProvider({
     [dismissTime, safeSetToasts]
   );
 
+  const dismissToast = useCallback((id: number) => {
+    setToasts((oldToasts) => oldToasts.filter((toast) => toast.id !== id));
+  }, []);
+
   const value = useMemo(
     () => ({
-      dispatchToast
+      dispatchToast,
+      dismissToast
     }),
-    [dispatchToast]
+    [dispatchToast, dismissToast]
   );
 
   return (
@@ -108,7 +106,7 @@ function ToastProvider({
         }}
       >
         {toasts.map((toastPayload) => (
-          <li key={toastPayload.date} style={{ margin: 8 }}>
+          <li key={toastPayload.id} style={{ margin: 8 }}>
             {renderToast(toastPayload)}
           </li>
         ))}
@@ -119,6 +117,36 @@ function ToastProvider({
 
 function useToasts() {
   return React.useContext(ToastContext);
+}
+
+function Toast({ type, message, id }: ToastProps) {
+  const { dismissToast } = useToasts();
+
+  return (
+    <div
+      className="fade-in"
+      style={{
+        border: `1px solid ${toastDataMap[type].dark}`,
+        background: toastDataMap[type].light,
+        color: toastDataMap[type].dark,
+        padding: 16
+      }}
+    >
+      {toastDataMap[type].icon} {message}{" "}
+      <button
+        aria-label="dismiss-toast"
+        style={{
+          background: "none",
+          border: "none",
+          fontSize: 20,
+          color: toastDataMap[type].dark
+        }}
+        onClick={() => dismissToast(id)}
+      >
+        ⓧ
+      </button>
+    </div>
+  );
 }
 
 function TestToastDispatch({ type, message }: ToastPayload) {
@@ -135,8 +163,8 @@ export default function App() {
       <h1>use-toasts</h1>
       <h2>Dispatch a toast and see what happens!</h2>
       <ToastProvider
-        renderToast={({ type, message }) => (
-          <Toast type={type} message={message} />
+        renderToast={({ type, message, id }) => (
+          <Toast id={id} type={type} message={message} />
         )}
       >
         <TestToastDispatch message="YAY! Stay toasty! 🍞" type="success" />
