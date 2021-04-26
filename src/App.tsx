@@ -1,4 +1,4 @@
-import React, { useCallback, useLayoutEffect, useMemo, useRef } from "react";
+import React from "react";
 import "./styles.css";
 
 type ToastPayload = {
@@ -30,8 +30,8 @@ type ToastContextValue = {
 type ToastProps = ExtendedToastPayload;
 
 function useIsMounted() {
-  const mountRef = useRef(false);
-  useLayoutEffect(() => {
+  const mountRef = React.useRef(false);
+  React.useLayoutEffect(() => {
     mountRef.current = true;
     return () => {
       mountRef.current = false;
@@ -43,7 +43,7 @@ function useIsMounted() {
 
 function useSafeDispatch<TDispatcher>(dispather: TDispatcher) {
   const isMounted = useIsMounted();
-  return (useCallback(
+  return (React.useCallback(
     (...args) => {
       if (!isMounted.current) return;
       if (typeof dispather === "function") dispather(...args);
@@ -64,7 +64,7 @@ function ToastProvider({
   const [toasts, setToasts] = React.useState<ExtendedToastPayload[]>([]);
   const safeSetToasts = useSafeDispatch(setToasts);
 
-  const dispatchToast = useCallback(
+  const dispatchToast = React.useCallback(
     (payload: ToastPayload) => {
       const realDismissTime: number = payload.dismissTime ?? dismissTime;
 
@@ -81,11 +81,11 @@ function ToastProvider({
     [dismissTime, safeSetToasts]
   );
 
-  const dismissToast = useCallback((id: number) => {
+  const dismissToast = React.useCallback((id: number) => {
     setToasts((oldToasts) => oldToasts.filter((toast) => toast.id !== id));
   }, []);
 
-  const value = useMemo(
+  const value = React.useMemo(
     () => ({
       dispatchToast,
       dismissToast
